@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# Allow AI Crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: FacebookBot
+Allow: /
+
+Sitemap: https://profitlens.run.app/sitemap.xml

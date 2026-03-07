@@ -36,7 +36,7 @@ async function startServer() {
   app.use(express.json());
 
   // API Routes
-  app.get("/api/health", (req, res) => {
+  app.get("https://profitlens-2743.onrender.com/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
@@ -63,71 +63,77 @@ async function startServer() {
   }
 
   // Register IPN with Pesapal
-  app.get("/api/pesapal/register-ipn", async (req, res) => {
-    try {
-      const token = await getPesapalToken();
+  app.get(
+    "https://profitlens-2743.onrender.com/api/pesapal/register-ipn",
+    async (req, res) => {
+      try {
+        const token = await getPesapalToken();
 
-      const response = await fetch(
-        `${PESAPAL_BASE_URL}/api/URLSetup/RegisterIPN`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
+        const response = await fetch(
+          `${PESAPAL_BASE_URL}/api/URLSetup/RegisterIPN`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              url: `${process.env.APP_URL}/api/pesapal/ipn`,
+              ipn_notification_type: "POST",
+            }),
           },
-          body: JSON.stringify({
-            url: `${process.env.APP_URL}/api/pesapal/ipn`,
-            ipn_notification_type: "POST",
-          }),
-        },
-      );
+        );
 
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to register IPN" });
-    }
-  });
+        const data = await response.json();
+        res.json(data);
+      } catch (error) {
+        res.status(500).json({ error: "Failed to register IPN" });
+      }
+    },
+  );
 
   // Initiate Pesapal Payment
-  app.post("/api/pesapal/initiate", async (req, res) => {
-    try {
-      const token = await getPesapalToken();
-      const { amount, userId, email } = req.body;
-      const callbackUrl = `${process.env.APP_URL}/api/pesapal/callback`;
+  app.post(
+    "https://profitlens-2743.onrender.com/api/pesapal/initiate",
+    async (req, res) => {
+      try {
+        const token = await getPesapalToken();
+        const { amount, userId, email } = req.body;
+        const callbackUrl = `${process.env.APP_URL}/api/pesapal/callback`;
 
-      const orderRequest = {
-        id: `order_${userId}_${Date.now()}`,
-        currency: "USD",
-        amount: amount || 29,
-        description: "ProfitLens Pro Subscription",
-        callback_url: callbackUrl,
-        notification_id: process.env.PESAPAL_IPN_ID,
-        billing_address: {
-          email_address: email || "user@example.com",
-        },
-      };
-
-      const response = await fetch(
-        `${PESAPAL_BASE_URL}/api/Transactions/SubmitOrderRequest`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
+        const orderRequest = {
+          id: `order_${userId}_${Date.now()}`,
+          currency: "USD",
+          amount: amount || 29,
+          description: "ProfitLens Pro Subscription",
+          callback_url: callbackUrl,
+          notification_id: process.env.PESAPAL_IPN_ID,
+          billing_address: {
+            email_address: email || "user@example.com",
           },
-          body: JSON.stringify(orderRequest),
-        },
-      );
+        };
 
-      const data = await response.json();
-      res.json(data); // Contains redirect_url and order_tracking_id
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+        const response = await fetch(
+          `${PESAPAL_BASE_URL}/api/Transactions/SubmitOrderRequest`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(orderRequest),
+          },
+        );
+
+        const data = await response.json();
+        res.json(data); // Contains redirect_url and order_tracking_id
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    },
+  );
 
   // Pesapal Callback
   app.get("/api/pesapal/callback", async (req, res) => {
@@ -137,68 +143,74 @@ async function startServer() {
   });
 
   // Pesapal IPN Listener
-  app.post("/api/pesapal/ipn", async (req, res) => {
-    const { OrderTrackingId, OrderNotificationType } = req.body;
-    const firestore = getFirestore();
+  app.post(
+    "https://profitlens-2743.onrender.com/api/pesapal/ipn",
+    async (req, res) => {
+      const { OrderTrackingId, OrderNotificationType } = req.body;
+      const firestore = getFirestore();
 
-    if (!firestore) return res.status(500).end();
+      if (!firestore) return res.status(500).end();
 
-    try {
-      const token = await getPesapalToken();
-      const response = await fetch(
-        `${PESAPAL_BASE_URL}/api/Transactions/GetTransactionStatus?orderTrackingId=${OrderTrackingId}`,
-        {
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      const statusData = await response.json();
-
-      if (statusData.payment_status_description === "Completed") {
-        // Update user to Pro in Firestore
-        // In a real app, you'd find the user by OrderMerchantReference or a stored mapping
-        const merchantRef = req.body.OrderMerchantReference;
-        const userId = merchantRef?.split("_")[1];
-
-        const userRef = firestore.collection("users").doc(userId);
-        await userRef.set(
+      try {
+        const token = await getPesapalToken();
+        const response = await fetch(
+          `${PESAPAL_BASE_URL}/api/Transactions/GetTransactionStatus?orderTrackingId=${OrderTrackingId}`,
           {
-            isPro: true,
-            pesapalTrackingId: OrderTrackingId,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            headers: {
+              Accept: "application/json",
+              Authorization: `Bearer ${token}`,
+            },
           },
-          { merge: true },
         );
-      }
+        const statusData = await response.json();
 
-      res.json({ status: 200, message: "IPN Received" });
-    } catch (error) {
-      res.status(500).end();
-    }
-  });
+        if (statusData.payment_status_description === "Completed") {
+          // Update user to Pro in Firestore
+          // In a real app, you'd find the user by OrderMerchantReference or a stored mapping
+          const merchantRef = req.body.OrderMerchantReference;
+          const userId = merchantRef?.split("_")[1];
+
+          const userRef = firestore.collection("users").doc(userId);
+          await userRef.set(
+            {
+              isPro: true,
+              pesapalTrackingId: OrderTrackingId,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true },
+          );
+        }
+
+        res.json({ status: 200, message: "IPN Received" });
+      } catch (error) {
+        res.status(500).end();
+      }
+    },
+  );
 
   // Save Report (Firebase)
-  app.post("/api/save-report", async (req, res) => {
-    const firestore = getFirestore();
-    if (!firestore) {
-      return res.status(500).json({ error: "Firebase not configured" });
-    }
+  app.post(
+    "https://profitlens-2743.onrender.com/api/save-report",
+    async (req, res) => {
+      const firestore = getFirestore();
+      if (!firestore) {
+        return res.status(500).json({ error: "Firebase not configured" });
+      }
 
-    try {
-      const { metrics, results, userId } = req.body;
-      const docRef = await firestore.collection("reports").add({
-        metrics,
-        results,
-        userId,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      res.json({ id: docRef.id });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+      try {
+        const { metrics, results, userId } = req.body;
+        const docRef = await firestore.collection("reports").add({
+          metrics,
+          results,
+          userId,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        res.json({ id: docRef.id });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    },
+  );
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

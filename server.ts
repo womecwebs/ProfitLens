@@ -133,7 +133,9 @@ async function startServer() {
   app.get("/api/pesapal/callback", async (req, res) => {
     const { OrderTrackingId, OrderMerchantReference } = req.query;
     // Redirect user back to the app success page
-    res.redirect(`/success?tracking_id=${OrderTrackingId}`);
+    res.redirect(
+      `https://profitlenz.netlify.app/success?tracking_id=${OrderTrackingId}`,
+    );
   });
 
   // Pesapal IPN Listener
@@ -156,13 +158,29 @@ async function startServer() {
       );
       const statusData = await response.json();
 
-      if (statusData.payment_status_description === "Completed") {
+      if (
+        statusData.payment_status_description === "Completed" &&
+        statusData.amount === 29
+      ) {
         // Update user to Pro in Firestore
         // In a real app, you'd find the user by OrderMerchantReference or a stored mapping
         const merchantRef = req.body.OrderMerchantReference;
+
+        if (!merchantRef.startsWith("order_")) {
+          return res.status(400).json({ error: "Invalid reference" });
+        }
+
         const userId = merchantRef?.split("_")[1];
 
         const userRef = firestore.collection("users").doc(userId);
+
+        // prevent duplicate payment processing
+        const userDoc = await userRef.get();
+
+        if (userDoc.exists && userDoc.data()?.isPro) {
+          return res.json({ status: 200, message: "Already processed" });
+        }
+
         await userRef.set(
           {
             isPro: true,

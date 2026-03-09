@@ -40,10 +40,7 @@ async function startServer() {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  const PESAPAL_BASE_URL =
-    process.env.PESAPAL_SANDBOX === "true"
-      ? "https://cybqa.pesapal.com/pesapalv3"
-      : "https://pay.pesapal.com/pesapalv3";
+  const PESAPAL_BASE_URL = "https://pay.pesapal.com/v3";
 
   // Pesapal Auth Token
   async function getPesapalToken() {
@@ -142,7 +139,6 @@ async function startServer() {
   app.post("/api/pesapal/ipn", async (req, res) => {
     const { OrderTrackingId, OrderNotificationType } = req.body;
     const firestore = getFirestore();
-
     if (!firestore) return res.status(500).end();
 
     try {

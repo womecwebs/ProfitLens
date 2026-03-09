@@ -137,7 +137,8 @@ async function startServer() {
 
   // Pesapal IPN Listener
   app.post("/api/pesapal/ipn", async (req, res) => {
-    const { OrderTrackingId, OrderNotificationType } = req.body;
+    const { OrderTrackingId, OrderMerchantReference } = req.body;
+
     const firestore = getFirestore();
     if (!firestore) return res.status(500).end();
 
@@ -160,7 +161,7 @@ async function startServer() {
       ) {
         // Update user to Pro in Firestore
         // In a real app, you'd find the user by OrderMerchantReference or a stored mapping
-        const merchantRef = req.body.OrderMerchantReference;
+        const merchantRef = OrderMerchantReference;
 
         if (!merchantRef.startsWith("order_")) {
           return res.status(400).json({ error: "Invalid reference" });

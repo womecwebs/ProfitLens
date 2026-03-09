@@ -844,15 +844,18 @@ function ProPage() {
 
   const initiatePesapal = async () => {
     try {
-      const response = await fetch("/api/pesapal/initiate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: 29,
-          email: "user@example.com",
-          userId: "default_user",
-        }),
-      });
+      const response = await fetch(
+        "https://profitlens-2743.onrender.com/api/pesapal/initiate",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: 29,
+            email: "user@example.com",
+            userId: "default_user",
+          }),
+        },
+      );
       const data = await response.json();
       if (data.redirect_url) {
         setPesapalUrl(data.redirect_url);

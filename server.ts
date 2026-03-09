@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import admin from "firebase-admin";
+import cors from "cors";
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(cors());
   app.use(express.json());
 
   // API Routes
@@ -94,8 +96,24 @@ async function startServer() {
       const { amount, userId, email } = req.body;
       const callbackUrl = `${process.env.APP_URL}/api/pesapal/callback`;
 
+      const firestore = getFirestore();
+      if (!firestore) return res.status(500).json({ error: "DB error" });
+
+      const orderId = `order_${userId}_${Date.now()}`;
+
+      await firestore
+        .collection("payments")
+        .doc(orderId)
+        .set({
+          userId,
+          orderId,
+          amount: amount || 29,
+          status: "pending",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
       const orderRequest = {
-        id: `order_${userId}_${Date.now()}`,
+        id: orderId,
         currency: "USD",
         amount: amount || 29,
         description: "ProfitLens Pro Subscription",
@@ -122,7 +140,8 @@ async function startServer() {
       const data = await response.json();
       res.json(data); // Contains redirect_url and order_tracking_id
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error("Pesapal initiate error:", error);
+      res.status(500).json({ error: "Payment initiation failed" });
     }
   });
 
@@ -168,6 +187,15 @@ async function startServer() {
         }
 
         const userId = merchantRef?.split("_")[1];
+        const orderId = merchantRef;
+
+        const paymentRef = firestore.collection("payments").doc(orderId);
+
+        await paymentRef.update({
+          trackingId: OrderTrackingId,
+          status: "completed",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
 
         const userRef = firestore.collection("users").doc(userId);
 

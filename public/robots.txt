@@ -17,4 +17,4 @@ Allow: /
 User-agent: FacebookBot
 Allow: /
 
-Sitemap: https://profitlens.run.app/sitemap.xml
+Sitemap: https://profitlenz.netlify.app/sitemap.xml

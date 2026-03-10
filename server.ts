@@ -21,6 +21,7 @@ function getFirestore() {
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
         });
+        console.log("Firebase initialized");
       }
       db = admin.firestore();
     } catch (e) {
@@ -28,6 +29,24 @@ function getFirestore() {
     }
   }
   return db;
+}
+
+async function verifyUser(req: any, res: any, next: any) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const token = authHeader.replace("Bearer ", "");
+    const decoded = await admin.auth().verifyIdToken(token);
+
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
 }
 
 async function startServer() {
@@ -40,6 +59,11 @@ async function startServer() {
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  app.get("/robots.txt", (req, res) => {
+    res.type("text/plain");
+    res.send("User-agent: *\nDisallow: /");
   });
 
   const PESAPAL_BASE_URL = "https://pay.pesapal.com/v3";
@@ -90,10 +114,11 @@ async function startServer() {
   });
 
   // Initiate Pesapal Payment
-  app.post("/api/pesapal/initiate", async (req, res) => {
+  app.post("/api/pesapal/initiate", verifyUser, async (req: any, res) => {
     try {
       const token = await getPesapalToken();
-      const { amount, userId, email } = req.body;
+      const { amount, email } = req.body;
+      const userId = req.user.uid;
       const callbackUrl = `${process.env.APP_URL}/api/pesapal/callback`;
 
       const firestore = getFirestore();
@@ -176,7 +201,7 @@ async function startServer() {
 
       if (
         statusData.payment_status_description === "Completed" &&
-        statusData.amount === 29
+        Number(statusData.amount) === 29
       ) {
         // Update user to Pro in Firestore
         // In a real app, you'd find the user by OrderMerchantReference or a stored mapping
@@ -223,7 +248,7 @@ async function startServer() {
   });
 
   // Save Report (Firebase)
-  app.post("/api/save-report", async (req, res) => {
+  app.post("/api/save-report", verifyUser, async (req, res) => {
     const firestore = getFirestore();
     if (!firestore) {
       return res.status(500).json({ error: "Firebase not configured" });

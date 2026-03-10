@@ -243,7 +243,7 @@ function SEOManager({
   description?: string;
 }) {
   const location = useLocation();
-  const canonicalUrl = `https://profitlens-2743.onrender.com${location.pathname}`;
+  const canonicalUrl = `https://profitlenz.netlify.app${location.pathname}`;
 
   useEffect(() => {
     const title =
@@ -287,10 +287,10 @@ function SEOManager({
 
     const organizationSchema = {
       "@type": "Organization",
-      "@id": "https://profitlens-2743.onrender.com/#organization",
+      "@id": "https://profitlenz.netlify.app/#organization",
       name: "ProfitLens",
-      url: "https://profitlens-2743.onrender.com",
-      logo: "https://profitlens-2743.onrender.com/logo.png",
+      url: "https://profitlenz.netlify.app",
+      logo: "https://profitlenz.netlify.app/logo.png",
       sameAs: [
         "https://twitter.com/profitlens",
         "https://linkedin.com/company/profitlens",
@@ -306,7 +306,7 @@ function SEOManager({
       operatingSystem: "Web",
       applicationCategory: "BusinessApplication",
       description: description,
-      author: { "@id": "https://profitlens-2743.onrender.com/#organization" },
+      author: { "@id": "https://profitlens.netlify.app/#organization" },
       offers: {
         "@type": "Offer",
         price: "0",
@@ -857,6 +857,9 @@ function ProPage() {
         },
       );
       const data = await response.json();
+
+      console.log("Pesapal response:", data);
+
       if (data.redirect_url) {
         setPesapalUrl(data.redirect_url);
       } else {
